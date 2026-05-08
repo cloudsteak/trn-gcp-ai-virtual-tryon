@@ -1,45 +1,51 @@
 import base64
-from google import genai
-from google.genai import types
-from .config import PROJECT_ID, LOCATION
+import google.auth
+import google.auth.transport.requests
+import requests
+from .config import PROJECT_ID, LOCATION, MODEL_NAME
 
 
 def run_virtual_tryon(person_image_bytes: bytes, garment_image_bytes: bytes) -> bytes:
-    # Vertex AI kliens inicializalasa ADC-vel
-    client = genai.Client(
-        vertexai=True,
-        project=PROJECT_ID,
-        location=LOCATION,
+    # ADC token lekerdese
+    credentials, _ = google.auth.default()
+    credentials.refresh(google.auth.transport.requests.Request())
+
+    url = (
+        f"https://{LOCATION}-aiplatform.googleapis.com/v1"
+        f"/projects/{PROJECT_ID}/locations/{LOCATION}"
+        f"/publishers/google/models/{MODEL_NAME}:predict"
     )
 
-    # Kepek base64 kodolasa
-    person_b64 = base64.b64encode(person_image_bytes).decode("utf-8")
-    garment_b64 = base64.b64encode(garment_image_bytes).decode("utf-8")
-
-    # TODO: Toltsd ki a modell nevet a Vertex AI Model Garden adatlapjarol
-    response = client.models.generate_content(
-        model="",  # <-- ez hianyos szandekosan
-        contents=[
-            types.Content(
-                parts=[
-                    types.Part(text="Generate a virtual try-on image."),
-                    types.Part(
-                        inline_data=types.Blob(
-                            mime_type="image/jpeg",
-                            data=person_b64,
-                        )
-                    ),
-                    types.Part(
-                        inline_data=types.Blob(
-                            mime_type="image/jpeg",
-                            data=garment_b64,
-                        )
-                    ),
-                ]
-            )
+    payload = {
+        "instances": [
+            {
+                "personImage": {
+                    "image": {
+                        "bytesBase64Encoded": base64.b64encode(person_image_bytes).decode("utf-8")
+                    }
+                },
+                "productImages": [
+                    {
+                        "image": {
+                            "bytesBase64Encoded": base64.b64encode(garment_image_bytes).decode("utf-8")
+                        }
+                    }
+                ],
+            }
         ],
+        "parameters": {"baseSteps": 10},
+    }
+
+    response = requests.post(
+        url,
+        json=payload,
+        headers={"Authorization": f"Bearer {credentials.token}"},
+        timeout=60,
     )
+
+    response.raise_for_status()
 
     # Generalt kep kinyerese a valaszbol
-    result_part = response.candidates[0].content.parts[0]
-    return base64.b64decode(result_part.inline_data.data)
+    result = response.json()
+    image_b64 = result["predictions"][0]["bytesBase64Encoded"]
+    return base64.b64decode(image_b64)

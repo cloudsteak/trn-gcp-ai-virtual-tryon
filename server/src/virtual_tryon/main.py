@@ -2,10 +2,14 @@ import asyncio
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from .config import ALLOWED_ORIGIN
+import google.auth
+from .config import ALLOWED_ORIGIN, LOCATION, MODEL_NAME
 from .agent_platform import run_virtual_tryon
 
 app = FastAPI(title="Virtual Try-On API")
+
+_, detected_project = google.auth.default()
+print(f"INFO: Starting with project={detected_project}, location={LOCATION}, model={MODEL_NAME}")
 
 app.add_middleware(
     CORSMiddleware,
