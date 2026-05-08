@@ -1,6 +1,6 @@
 import { useRef } from "react";
 
-export default function ImageUploader({ label, image, onImageSelect }) {
+export default function ImageUploader({ label, image, onImageSelect, tall = false }) {
   const inputRef = useRef(null);
 
   function handleFileChange(e) {
@@ -22,7 +22,7 @@ export default function ImageUploader({ label, image, onImageSelect }) {
 
   return (
     <div
-      className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-4 cursor-pointer hover:border-blue-400 transition-colors min-h-64 bg-gray-50"
+      className={`flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-4 cursor-pointer hover:border-blue-400 transition-colors bg-gray-50 ${tall ? "h-full min-h-96" : "min-h-48"}`}
       onClick={() => inputRef.current.click()}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
@@ -39,7 +39,7 @@ export default function ImageUploader({ label, image, onImageSelect }) {
         <img
           src={URL.createObjectURL(image)}
           alt={label}
-          className="max-h-56 rounded-lg object-contain"
+          className={`rounded-lg object-contain ${tall ? "w-full h-full max-h-full" : "max-h-40"}`}
         />
       ) : (
         <div className="flex flex-col items-center text-gray-400">

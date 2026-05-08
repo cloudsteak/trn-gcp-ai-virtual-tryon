@@ -64,11 +64,12 @@ export default function App() {
           Töltsd fel a személyed képét és a ruhadarabokat – az AI megmutatja, hogyan állnak!
         </p>
 
-        <div className="grid grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-2 gap-6 mb-6 items-stretch">
           <ImageUploader
             label="Személy képe"
             image={personImage}
             onImageSelect={setPersonImage}
+            tall
           />
           <div className="flex flex-col gap-4">
             {GARMENT_SLOTS.map((slot) => (
