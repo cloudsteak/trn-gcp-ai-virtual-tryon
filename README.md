@@ -26,7 +26,17 @@ Ez egy demo alkalmazás, amellyel kipróbálhatod, hogyan néznél ki egy ruháb
 
 ## Lokális futtatás lépésről lépésre
 
-### 1. Backend (server)
+### 1. Google Cloud bejelentkezés
+
+A szerver a Google ADC (Application Default Credentials) rendszert használja – ez azt jelenti, hogy a gépeden tárolt bejelentkezési tokened alapján hitelesíti magát, nem pedig egy hardkódolt jelszóval. A `GCP_PROJECT_ID` csak megmondja, melyik projektbe küldje a kéréseket – önmagában nem jelent hozzáférést.
+
+```bash
+gcloud auth application-default login
+```
+
+Ezt csak egyszer kell futtatni. Cloud Run-on ezt a Service Account végzi automatikusan.
+
+### 2. Backend (server)
 
 ```bash
 cd server
