@@ -104,7 +104,7 @@ uv run uvicorn virtual_tryon.main:app --host 0.0.0.0 --port 8000 --reload --env-
 ```bash
 cd client
 
-# Függőségek telepítése
+# Függőségek telepítése - ajánlott Node.js 22+ verzióval
 npm install
 
 # Fejlesztői szerver indítása
@@ -122,16 +122,20 @@ Nyisd meg a böngészőben: [http://localhost:5173](http://localhost:5173)
 ```bash
 cd server
 
+# Project ID és egyéb környezeti változók beállítása a build során
+export GCP_PROJECT_ID=YOUR_PROJECT_ID
+export ALLOWED_ORIGIN=https://YOUR_CLIENT_URL
+
 # Docker image build és push
-gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/virtual-tryon-server
+gcloud builds submit --tag gcr.io/$GCP_PROJECT_ID/virtual-tryon-server
 
 # Cloud Run service létrehozása
 gcloud run deploy virtual-tryon-server \
-  --image gcr.io/YOUR_PROJECT_ID/virtual-tryon-server \
+  --image gcr.io/$GCP_PROJECT_ID/virtual-tryon-server \
   --platform managed \
-  --region us-central1 \
+  --region europe-west1 \
   --allow-unauthenticated \
-  --set-env-vars GCP_PROJECT_ID=YOUR_PROJECT_ID,ALLOWED_ORIGIN=https://YOUR_CLIENT_URL
+  --set-env-vars GCP_PROJECT_ID=$GCP_PROJECT_ID,ALLOWED_ORIGIN=$ALLOWED_ORIGIN
 ```
 
 ### Frontend deploy
@@ -139,16 +143,21 @@ gcloud run deploy virtual-tryon-server \
 ```bash
 cd client
 
+# Project ID és API URL beállítása környezeti változóként a build során
+export GCP_PROJECT_ID=YOUR_PROJECT_ID
+export VITE_API_URL=https://YOUR_SERVER_URL
+
+
 # Docker image build és push
-gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/virtual-tryon-client
+gcloud builds submit --tag gcr.io/$GCP_PROJECT_ID/virtual-tryon-client
 
 # Cloud Run service létrehozása
 gcloud run deploy virtual-tryon-client \
-  --image gcr.io/YOUR_PROJECT_ID/virtual-tryon-client \
+  --image gcr.io/$GCP_PROJECT_ID/virtual-tryon-client \
   --platform managed \
-  --region us-central1 \
+  --region europe-west1 \
   --allow-unauthenticated \
-  --set-env-vars VITE_API_URL=https://YOUR_SERVER_URL
+  --set-env-vars VITE_API_URL=$VITE_API_URL
 ```
 
 ---
