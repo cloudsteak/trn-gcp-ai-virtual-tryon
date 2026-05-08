@@ -19,7 +19,7 @@ Ez egy demo alkalmazás, amellyel kipróbálhatod, hogyan néznél ki egy ruháb
 - Google Cloud Platform (GCP) projekt
 - A Vertex AI API engedélyezve a projektben
 - `gcloud` CLI telepítve (lásd lent)
-- Node.js 20+ és Python 3.12+ telepítve helyileg
+- Node.js 22+ és Python 3.12+ telepítve helyileg
 - `uv` Python csomagkezelő (`pip install uv`)
 
 ---
