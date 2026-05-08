@@ -5,29 +5,19 @@ import requests
 from .config import PROJECT_ID, LOCATION, MODEL_NAME
 
 
-def run_virtual_tryon(person_image_bytes: bytes, garment_image_bytes: bytes) -> bytes:
-    # ADC token lekerdese
-    credentials, _ = google.auth.default()
-    credentials.refresh(google.auth.transport.requests.Request())
-
-    url = (
-        f"https://{LOCATION}-aiplatform.googleapis.com/v1"
-        f"/projects/{PROJECT_ID}/locations/{LOCATION}"
-        f"/publishers/google/models/{MODEL_NAME}:predict"
-    )
-
+def _try_on_single(credentials, url: str, person_bytes: bytes, garment_bytes: bytes) -> bytes:
     payload = {
         "instances": [
             {
                 "personImage": {
                     "image": {
-                        "bytesBase64Encoded": base64.b64encode(person_image_bytes).decode("utf-8")
+                        "bytesBase64Encoded": base64.b64encode(person_bytes).decode("utf-8")
                     }
                 },
                 "productImages": [
                     {
                         "image": {
-                            "bytesBase64Encoded": base64.b64encode(garment_image_bytes).decode("utf-8")
+                            "bytesBase64Encoded": base64.b64encode(garment_bytes).decode("utf-8")
                         }
                     }
                 ],
@@ -40,12 +30,29 @@ def run_virtual_tryon(person_image_bytes: bytes, garment_image_bytes: bytes) -> 
         url,
         json=payload,
         headers={"Authorization": f"Bearer {credentials.token}"},
-        timeout=60,
+        timeout=120,
     )
-
     response.raise_for_status()
 
-    # Generalt kep kinyerese a valaszbol
     result = response.json()
-    image_b64 = result["predictions"][0]["bytesBase64Encoded"]
-    return base64.b64decode(image_b64)
+    return base64.b64decode(result["predictions"][0]["bytesBase64Encoded"])
+
+
+def run_virtual_tryon(person_image_bytes: bytes, garment_images_bytes: list[bytes]) -> bytes:
+    # ADC token lekerdese
+    credentials, _ = google.auth.default()
+    credentials.refresh(google.auth.transport.requests.Request())
+
+    url = (
+        f"https://{LOCATION}-aiplatform.googleapis.com/v1"
+        f"/projects/{PROJECT_ID}/locations/{LOCATION}"
+        f"/publishers/google/models/{MODEL_NAME}:predict"
+    )
+
+    # Tobbszoros probafuelke: minden ruhadarabot egymasutan probaljuk fel,
+    # az elozo eredmenyt hasznalva szemelykepkent
+    current_person = person_image_bytes
+    for garment_bytes in garment_images_bytes:
+        current_person = _try_on_single(credentials, url, current_person, garment_bytes)
+
+    return current_person

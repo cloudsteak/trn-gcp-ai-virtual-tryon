@@ -1,4 +1,5 @@
 import asyncio
+from typing import List
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -35,23 +36,25 @@ def validate_image(file: UploadFile, content: bytes) -> None:
 @app.post("/try-on")
 async def try_on(
     person_image: UploadFile = File(...),
-    product_image: UploadFile = File(...),
+    product_images: List[UploadFile] = File(...),
 ):
-    # Mindket kep beolvasasa
     person_bytes = await person_image.read()
-    product_bytes = await product_image.read()
-
     validate_image(person_image, person_bytes)
-    validate_image(product_image, product_bytes)
+
+    product_bytes_list = []
+    for product_image in product_images:
+        content = await product_image.read()
+        validate_image(product_image, content)
+        product_bytes_list.append(content)
 
     try:
         # Vertex AI hivas 60 masodperces timeouttal
         result_bytes = await asyncio.wait_for(
-            asyncio.to_thread(run_virtual_tryon, person_bytes, product_bytes),
-            timeout=60.0,
+            asyncio.to_thread(run_virtual_tryon, person_bytes, product_bytes_list),
+            timeout=180.0,
         )
     except asyncio.TimeoutError:
-        print("ERROR: Vertex AI call timed out after 60 seconds")
+        print("ERROR: Vertex AI call timed out after 180 seconds")
         raise HTTPException(status_code=500, detail="Vertex AI request timed out.")
     except Exception as e:
         print(f"ERROR: Vertex AI call failed: {e}")

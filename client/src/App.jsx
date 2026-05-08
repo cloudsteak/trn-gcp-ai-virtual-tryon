@@ -4,14 +4,25 @@ import ResultDisplay from "./components/ResultDisplay";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
+const GARMENT_SLOTS = [
+  { key: "top", label: "Felső" },
+  { key: "bottom", label: "Nadrág" },
+  { key: "shoes", label: "Lábeli" },
+];
+
 export default function App() {
   const [personImage, setPersonImage] = useState(null);
-  const [garmentImage, setGarmentImage] = useState(null);
+  const [garments, setGarments] = useState({ top: null, bottom: null, shoes: null });
   const [resultUrl, setResultUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const canSubmit = personImage && garmentImage && !loading;
+  const filledGarments = GARMENT_SLOTS.map((s) => garments[s.key]).filter(Boolean);
+  const canSubmit = personImage && filledGarments.length > 0 && !loading;
+
+  function updateGarment(key, file) {
+    setGarments((prev) => ({ ...prev, [key]: file }));
+  }
 
   async function handleTryOn() {
     if (!canSubmit) return;
@@ -21,7 +32,7 @@ export default function App() {
 
     const formData = new FormData();
     formData.append("person_image", personImage);
-    formData.append("product_image", garmentImage);
+    filledGarments.forEach((img) => formData.append("product_images", img));
 
     try {
       const response = await fetch(`${API_URL}/try-on`, {
@@ -45,28 +56,33 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-center text-indigo-700 mb-2">
           Virtuális Próbafülke
         </h1>
         <p className="text-center text-gray-500 mb-8 text-sm">
-          Töltsd fel a személyed képét és a ruhadarabot – az AI megmutatja, hogyan áll!
+          Töltsd fel a személyed képét és a ruhadarabokat – az AI megmutatja, hogyan állnak!
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-6 mb-6">
           <ImageUploader
             label="Személy képe"
             image={personImage}
             onImageSelect={setPersonImage}
           />
-          <ImageUploader
-            label="Ruhadarab képe"
-            image={garmentImage}
-            onImageSelect={setGarmentImage}
-          />
+          <div className="flex flex-col gap-4">
+            {GARMENT_SLOTS.map((slot) => (
+              <ImageUploader
+                key={slot.key}
+                label={slot.label}
+                image={garments[slot.key]}
+                onImageSelect={(file) => updateGarment(slot.key, file)}
+              />
+            ))}
+          </div>
         </div>
 
-        <div className="flex flex-col items-center mt-6 gap-3">
+        <div className="flex flex-col items-center gap-3">
           <button
             onClick={handleTryOn}
             disabled={!canSubmit}
