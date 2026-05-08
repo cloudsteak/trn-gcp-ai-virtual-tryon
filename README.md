@@ -76,10 +76,12 @@ gcloud init
 A szerver a Google ADC (Application Default Credentials) rendszert használja – ez azt jelenti, hogy a gépeden tárolt bejelentkezési tokened alapján hitelesíti magát, nem pedig egy hardkódolt jelszóval. A `GCP_PROJECT_ID` csak megmondja, melyik projektbe küldje a kéréseket – önmagában nem jelent hozzáférést.
 
 ```bash
+gcloud auth login
+gcloud config set project PROJEKT_ID
 gcloud auth application-default login
 ```
 
-Ezt csak egyszer kell futtatni. Cloud Run-on ezt a Service Account végzi automatikusan.
+Ezeket csak egyszer kell futtatni. Cloud Run-on ezt a Service Account végzi automatikusan.
 
 ### 2. Backend (server)
 
@@ -91,13 +93,13 @@ uv sync
 
 # Környezeti változók beállítása
 cp .env.example .env
-# Szerkeszd a .env fájlt: add meg a GCP_PROJECT_ID értékét
+# Szerkeszd a .env fájlt: add meg a GCP_PROJECT_ID és MODEL_NAME értékét
 
 # Szerver indítása
-uv run uvicorn virtual_tryon.main:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn virtual_tryon.main:app --host 0.0.0.0 --port 8000 --reload --env-file .env
 ```
 
-### 2. Frontend (client)
+### 3. Frontend (client)
 
 ```bash
 cd client
@@ -153,4 +155,4 @@ gcloud run deploy virtual-tryon-client \
 
 ## A „törött" állapotról
 
-Az alkalmazás alapállapotban szándékosan nem működik teljesen: a `server/src/virtual_tryon/vertex.py` fájlban a Vertex AI modell neve üresen van hagyva – ezt a képzésen töltjük ki együtt a résztvevőkkel.
+Az alkalmazás alapállapotban szándékosan nem működik teljesen: a `server/.env` fájlban a `MODEL_NAME` értéke üresen van hagyva – ezt a képzésen töltjük ki együtt a résztvevőkkel a Vertex AI Model Garden adatlapja alapján.
