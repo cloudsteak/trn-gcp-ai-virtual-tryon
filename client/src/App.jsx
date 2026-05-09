@@ -5,9 +5,9 @@ import ResultDisplay from "./components/ResultDisplay";
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 const GARMENT_SLOTS = [
-  { key: "top", label: "Felső" },
-  { key: "bottom", label: "Nadrág" },
-  { key: "shoes", label: "Lábeli" },
+  { key: "top", label: "Felső (póló, ing, pulóver)" },
+  { key: "bottom", label: "Nadrág (farmer, szoknya, rövidnadrág)" },
+  { key: "shoes", label: "Lábbeli (cipő, szandál, papucs)" },
 ];
 
 export default function App() {
