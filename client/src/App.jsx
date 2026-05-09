@@ -2,8 +2,10 @@ import { useState } from "react";
 import ImageUploader from "./components/ImageUploader";
 import ResultDisplay from "./components/ResultDisplay";
 
+// Backend URL: fejlesztesben ures (Vite proxy kezeli), produkcioban kornyezeti valtozokent jon
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
+// Ruhadarab slotok definicioja – sorrendben kerulnek feldolgozasra az AI-ban
 const GARMENT_SLOTS = [
   { key: "top", label: "Felső (póló, ing, pulóver)" },
   { key: "bottom", label: "Nadrág (farmer, szoknya, rövidnadrág)" },
@@ -17,7 +19,10 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Csak a kitoltott ruhadarabok kerulnek elkuldésre
   const filledGarments = GARMENT_SLOTS.map((s) => garments[s.key]).filter(Boolean);
+
+  // A gomb csak akkor aktiv, ha van szemelykep es legalabb egy ruhadarab
   const canSubmit = personImage && filledGarments.length > 0 && !loading;
 
   function updateGarment(key, file) {
@@ -30,6 +35,7 @@ export default function App() {
     setError(null);
     setResultUrl(null);
 
+    // multipart/form-data osszeallitasa – szemelykep + ruhadarabok
     const formData = new FormData();
     formData.append("person_image", personImage);
     filledGarments.forEach((img) => formData.append("product_images", img));
@@ -45,6 +51,7 @@ export default function App() {
         throw new Error(msg || "Ismeretlen hiba történt.");
       }
 
+      // A szerver PNG kepet ad vissza – helyi URL-le alakitjuk a megjeleníteshez
       const blob = await response.blob();
       setResultUrl(URL.createObjectURL(blob));
     } catch (err) {
@@ -64,6 +71,7 @@ export default function App() {
           Töltsd fel a személyed képét és a ruhadarabokat – az AI megmutatja, hogyan állnak!
         </p>
 
+        {/* Ket oszlopos layout: bal – szemely, jobb – ruhadarabok */}
         <div className="grid grid-cols-2 gap-6 mb-6 items-stretch">
           <ImageUploader
             label="Személy képe"
@@ -93,6 +101,7 @@ export default function App() {
             {loading ? "Az AI dolgozik..." : "Próbáld fel!"}
           </button>
 
+          {/* Betoltes jelzo – amig az AI feldolgozza a kereseket */}
           {loading && (
             <div className="flex items-center gap-2 text-indigo-600 text-sm">
               <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
@@ -108,6 +117,7 @@ export default function App() {
           )}
         </div>
 
+        {/* Generalt kep megjelenitese */}
         <ResultDisplay imageUrl={resultUrl} />
       </div>
     </div>

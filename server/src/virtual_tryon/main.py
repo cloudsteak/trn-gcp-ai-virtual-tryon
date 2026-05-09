@@ -7,11 +7,14 @@ import google.auth
 from .config import ALLOWED_ORIGIN, LOCATION, MODEL_NAME
 from .agent_platform import run_virtual_tryon
 
+# FastAPI alkalmazas letrehozasa
 app = FastAPI(title="Virtual Try-On API")
 
+# Aktualis GCP projekt kiirasa inditaskor – ellenorzeshez hasznos
 _, detected_project = google.auth.default()
 print(f"INFO: Starting with project={detected_project}, location={LOCATION}, model={MODEL_NAME}")
 
+# CORS beallitas: csak az engedélyezett frontend URL-rol fogad kereseket
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[ALLOWED_ORIGIN],
@@ -20,15 +23,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Feltoltheto fajl maximalis merete es engedelyezett tipusai
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png"}
 
 
 def validate_image(file: UploadFile, content: bytes) -> None:
-    # Fajltipus ellenorzese
+    # Fajltipus ellenorzese – csak jpg es png engedelyezett
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(status_code=400, detail="Only jpg and png images are accepted.")
-    # Fajlmeret ellenorzese
+    # Fajlmeret ellenorzese – max 10MB
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail="File size exceeds 10MB limit.")
 
@@ -38,9 +42,11 @@ async def try_on(
     person_image: UploadFile = File(...),
     product_images: List[UploadFile] = File(...),
 ):
+    # Szemelykep beolvasasa es validalasa
     person_bytes = await person_image.read()
     validate_image(person_image, person_bytes)
 
+    # Osszes ruhadarab beolvasasa es validalasa
     product_bytes_list = []
     for product_image in product_images:
         content = await product_image.read()
@@ -48,7 +54,8 @@ async def try_on(
         product_bytes_list.append(content)
 
     try:
-        # Vertex AI hivas 60 masodperces timeouttal
+        # Agent Platform hivas kulonallo szalban, 180 masodperces timeouttal
+        # (tobb ruhadarabnal tobb egymast koveto hivas tortenik)
         result_bytes = await asyncio.wait_for(
             asyncio.to_thread(run_virtual_tryon, person_bytes, product_bytes_list),
             timeout=180.0,
@@ -60,4 +67,5 @@ async def try_on(
         print(f"ERROR: Vertex AI call failed: {e}")
         raise HTTPException(status_code=500, detail="Vertex AI error.")
 
+    # Generalt kep visszakuldese PNG formatumban
     return Response(content=result_bytes, media_type="image/png")

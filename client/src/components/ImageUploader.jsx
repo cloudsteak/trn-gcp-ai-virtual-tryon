@@ -1,14 +1,17 @@
 import { useRef } from "react";
 
+// tall prop: a szemelykep panelnel hasznaljuk, hogy kitoltse a jobb oldali 3 doboz magassagat
 export default function ImageUploader({ label, image, onImageSelect, tall = false }) {
   const inputRef = useRef(null);
 
+  // Fajlvalaszto input kezelese
   function handleFileChange(e) {
     const file = e.target.files[0];
     if (!file) return;
     onImageSelect(file);
   }
 
+  // Drag and drop kezelese
   function handleDrop(e) {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
@@ -27,6 +30,7 @@ export default function ImageUploader({ label, image, onImageSelect, tall = fals
       onDrop={handleDrop}
       onDragOver={handleDragOver}
     >
+      {/* Rejtett fajlvalaszto – a dobozra kattintaskor nyilik meg */}
       <input
         ref={inputRef}
         type="file"
@@ -36,12 +40,14 @@ export default function ImageUploader({ label, image, onImageSelect, tall = fals
       />
       <p className="text-sm font-semibold text-gray-500 mb-3">{label}</p>
       {image ? (
+        // Feltoltott kep elonetze
         <img
           src={URL.createObjectURL(image)}
           alt={label}
           className={`rounded-lg object-contain ${tall ? "w-full h-full max-h-full" : "max-h-40"}`}
         />
       ) : (
+        // Feltoltes elott megjeleno utmutato
         <div className="flex flex-col items-center text-gray-400">
           <svg className="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5V18a2.25 2.25 0 002.25 2.25h13.5A2.25 2.25 0 0021 18v-1.5M16.5 12L12 7.5m0 0L7.5 12M12 7.5V21" />
