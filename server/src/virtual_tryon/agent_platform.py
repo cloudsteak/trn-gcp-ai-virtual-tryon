@@ -1,11 +1,25 @@
 import base64
+import copy
 import google.auth
 import google.auth.transport.requests
 import requests
 from .config import PROJECT_ID, LOCATION, MODEL_NAME
 
 
-def _try_on_single(credentials, url: str, person_bytes: bytes, garment_bytes: bytes) -> bytes:
+def sanitize_model_response(data, max_preview: int = 60) -> dict | list | str | int | float | bool | None:
+    # Base64 mezok roviditese – olvashato log es UI szamara
+    if isinstance(data, dict):
+        return {key: sanitize_model_response(value, max_preview) for key, value in data.items()}
+    if isinstance(data, list):
+        return [sanitize_model_response(item, max_preview) for item in data]
+    if isinstance(data, str) and len(data) > max_preview:
+        return f"{data[:max_preview]}... [{len(data)} chars, truncated]"
+    return data
+
+
+def _try_on_single(
+    credentials, url: str, person_bytes: bytes, garment_bytes: bytes
+) -> tuple[bytes, dict]:
     # Kepek base64 kodolasa – az API csak szoveges formatumot fogad
     payload = {
         "instances": [
@@ -38,10 +52,13 @@ def _try_on_single(credentials, url: str, person_bytes: bytes, garment_bytes: by
 
     # Generalt kep kinyerese es dekodolasa
     result = response.json()
-    return base64.b64decode(result["predictions"][0]["bytesBase64Encoded"])
+    image_bytes = base64.b64decode(result["predictions"][0]["bytesBase64Encoded"])
+    return image_bytes, result
 
 
-def run_virtual_tryon(person_image_bytes: bytes, garment_images_bytes: list[bytes]) -> bytes:
+def run_virtual_tryon(
+    person_image_bytes: bytes, garment_images_bytes: list[bytes]
+) -> tuple[bytes, list[dict]]:
     # ADC token lekerdese – a Cloud Run-on a Service Account vegzi automatikusan
     credentials, _ = google.auth.default()
     credentials.refresh(google.auth.transport.requests.Request())
@@ -56,7 +73,9 @@ def run_virtual_tryon(person_image_bytes: bytes, garment_images_bytes: list[byte
     # Lancolt probafuelke: minden ruhadarabot egymasutan probaljuk fel,
     # az elozo eredmenykepet hasznalva szemelykepkent a kovetkezo korben
     current_person = person_image_bytes
-    for garment_bytes in garment_images_bytes:
-        current_person = _try_on_single(credentials, url, current_person, garment_bytes)
+    model_responses: list[dict] = []
+    for index, garment_bytes in enumerate(garment_images_bytes, start=1):
+        current_person, api_response = _try_on_single(credentials, url, current_person, garment_bytes)
+        model_responses.append({"garment_index": index, "response": copy.deepcopy(api_response)})
 
-    return current_person
+    return current_person, model_responses

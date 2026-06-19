@@ -1,11 +1,13 @@
 import asyncio
+import base64
+import json
 from typing import List
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 import google.auth
 from .config import ALLOWED_ORIGIN, LOCATION, MODEL_NAME, PROJECT_ID
-from .agent_platform import run_virtual_tryon
+from .agent_platform import run_virtual_tryon, sanitize_model_response
 
 # FastAPI alkalmazas letrehozasa
 app = FastAPI(title="Virtual Try-On API")
@@ -40,10 +42,15 @@ def validate_image(file: UploadFile, content: bytes) -> None:
         raise HTTPException(status_code=400, detail="File size exceeds 10MB limit.")
 
 
+def _parse_show_model_response(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @app.post("/try-on")
 async def try_on(
     person_image: UploadFile = File(...),
     product_images: List[UploadFile] = File(...),
+    show_model_response: str = Form("false"),
 ):
     # Szemelykep beolvasasa es validalasa
     person_bytes = await person_image.read()
@@ -56,10 +63,12 @@ async def try_on(
         validate_image(product_image, content)
         product_bytes_list.append(content)
 
+    include_model_response = _parse_show_model_response(show_model_response)
+
     try:
         # Agent Platform hivas kulonallo szalban, 180 masodperces timeouttal
         # (tobb ruhadarabnal tobb egymast koveto hivas tortenik)
-        result_bytes = await asyncio.wait_for(
+        result_bytes, model_responses = await asyncio.wait_for(
             asyncio.to_thread(run_virtual_tryon, person_bytes, product_bytes_list),
             timeout=180.0,
         )
@@ -69,6 +78,17 @@ async def try_on(
     except Exception as e:
         print(f"ERROR: Vertex AI call failed: {e}")
         raise HTTPException(status_code=500, detail="Vertex AI error.")
+
+    sanitized_responses = sanitize_model_response(model_responses)
+    print(f"INFO: Vertex AI model response: {json.dumps(sanitized_responses, ensure_ascii=False)}")
+
+    if include_model_response:
+        return JSONResponse(
+            content={
+                "image_base64": base64.b64encode(result_bytes).decode("utf-8"),
+                "model_responses": sanitized_responses,
+            }
+        )
 
     # Generalt kep visszakuldese PNG formatumban
     return Response(content=result_bytes, media_type="image/png")
