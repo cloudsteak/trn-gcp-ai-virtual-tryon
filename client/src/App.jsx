@@ -122,7 +122,7 @@ export default function App() {
           {showModelResponse && (
             <div className="w-full max-w-2xl">
               <label htmlFor="model-response" className="block text-sm font-medium text-gray-700 mb-1">
-                Vertex AI modell válasz
+                virtual-try-on-001 modell válasza
               </label>
               <textarea
                 id="model-response"

@@ -73,14 +73,14 @@ async def try_on(
             timeout=180.0,
         )
     except asyncio.TimeoutError:
-        print("ERROR: Vertex AI call timed out after 180 seconds")
-        raise HTTPException(status_code=500, detail="Vertex AI request timed out.")
+        print(f"ERROR: {MODEL_NAME} call timed out after 180 seconds")
+        raise HTTPException(status_code=500, detail=f"{MODEL_NAME} request timed out.")
     except Exception as e:
-        print(f"ERROR: Vertex AI call failed: {e}")
-        raise HTTPException(status_code=500, detail="Vertex AI error.")
+        print(f"ERROR: {MODEL_NAME} call failed: {e}")
+        raise HTTPException(status_code=500, detail=f"{MODEL_NAME} error.")
 
     sanitized_responses = sanitize_model_response(model_responses)
-    print(f"INFO: Vertex AI model response: {json.dumps(sanitized_responses, ensure_ascii=False)}")
+    print(f"INFO: {MODEL_NAME} model response: {json.dumps(sanitized_responses, ensure_ascii=False)}")
 
     if include_model_response:
         return JSONResponse(
