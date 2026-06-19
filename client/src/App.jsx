@@ -2,8 +2,12 @@ import { useState } from "react";
 import ImageUploader from "./components/ImageUploader";
 import ResultDisplay from "./components/ResultDisplay";
 
-// Backend URL: fejlesztesben ures (Vite proxy kezeli), produkcioban kornyezeti valtozokent jon
-const API_URL = import.meta.env.VITE_API_URL ?? "";
+// Backend URL: Cloud Run runtime config.js, vagy build-time env, vagy ures (Vite proxy)
+function getApiUrl() {
+  const runtime = window.__RUNTIME_CONFIG__?.apiUrl;
+  if (runtime) return runtime;
+  return import.meta.env.VITE_API_URL ?? "";
+}
 
 // Ruhadarab slotok definicioja – sorrendben kerulnek feldolgozasra az AI-ban
 const GARMENT_SLOTS = [
@@ -41,7 +45,7 @@ export default function App() {
     filledGarments.forEach((img) => formData.append("product_images", img));
 
     try {
-      const response = await fetch(`${API_URL}/try-on`, {
+      const response = await fetch(`${getApiUrl()}/try-on`, {
         method: "POST",
         body: formData,
       });
