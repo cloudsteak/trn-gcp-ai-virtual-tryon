@@ -7,7 +7,7 @@ Ruha felpróbálás AI-val: feltöltöd a saját fotódat és a ruhadarabokat (f
 ## Tartalom
 
 1. [Gcloud telepítés](#gcloud-telepítés)
-2. [Általános ismerető](#1-általános-ismerető) *(ez a szekció)*
+2. [Általános ismerető](#1-általános-ismerető)
 3. [Virtuális próbafülke skálázható felhő alapú megoldással](#2-virtuális-próbafülke-skálázható-felhő-alapú-megoldással)
 
 ---
@@ -30,17 +30,27 @@ export GITHUB_REPO=<szervezet>/<repo-nev>
 
 ### 2. Bejelentkezés GCP-be
 
+**Mindkét parancs kötelező** – a 3. lépés és a helyi backend csak ezután működik.
+
 ```bash
-gcloud auth login                              # gcloud CLI parancsokhoz (setup.sh, setup-wif.sh)
-gcloud auth application-default login          # helyi backend futtatáshoz (ADC)
+gcloud auth login
+gcloud auth application-default login
 ```
+
+- `gcloud auth login` – a `gcloud` CLI parancsokhoz (`config set project`, `setup.sh`, `setup-wif.sh`)
+- `gcloud auth application-default login` – Application Default Credentials (ADC); nélküle a `set-quota-project` és a helyi backend `/try-on` hívás hibázik
 
 ### 3. Aktuális projekt beállítása
 
+> Futtasd csak a 2. lépés **mindkét** bejelentkezése után.
+
 ```bash
-gcloud config set project "${GCP_PROJECT_ID}"                              # alapértelmezett projekt a gcloud CLI parancsokhoz
-gcloud auth application-default set-quota-project "${GCP_PROJECT_ID}"    # számlázási/kvóta projekt a helyi ADC-hez
+gcloud config set project "${GCP_PROJECT_ID}"
+gcloud auth application-default set-quota-project "${GCP_PROJECT_ID}"
 ```
+
+- `gcloud config set project` – alapértelmezett projekt a gcloud CLI parancsokhoz
+- `set-quota-project` – számlázási/kvóta projekt az ADC-hez (előfeltétel: `gcloud auth application-default login`)
 
 ### 4. Infrastruktúra telepítése
 
@@ -87,8 +97,10 @@ A GitHub Actions automatikusan deployol – pár perc múlva él az alkalmazás.
 ```bash
 ./scripts/teardown.sh
 ./scripts/teardown-wif.sh
-./scripts/teardown-github.sh   # secrets + pipeline workflow run history
+./scripts/teardown-github.sh
 ```
+
+A `teardown-github.sh` törli a GitHub secrets-eket és a pipeline workflow run history-t is.
 
 ---
 
@@ -375,8 +387,10 @@ MODEL_NAME=virtual-try-on-001
 ```
 
 ```bash
+gcloud auth login
 gcloud auth application-default login
 gcloud config set project <a-gcp-projekt-id>
+gcloud auth application-default set-quota-project <a-gcp-projekt-id>
 uv sync
 uv run uvicorn virtual_tryon.main:app --host 0.0.0.0 --port 8000 --reload --env-file .env
 ```
