@@ -7,11 +7,11 @@ on:
 
 env:
   GCP_REGION: europe-west1
-  BACKEND_SERVICE: virtual-tryon-server
-  FRONTEND_SERVICE: virtual-tryon-client
+  SERVER_SERVICE: virtual-tryon-server
+  CLIENT_SERVICE: virtual-tryon-client
 
 jobs:
-  deploy-backend:
+  deploy-server:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -30,14 +30,14 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Deploy backend to Cloud Run
+      - name: Deploy server to Cloud Run
         working-directory: server
         env:
           PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           CICD_SA: ${{ secrets.GCP_WIF_SERVICE_ACCOUNT }}
           RUNTIME_SA: virtual-tryon-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
         run: |
-          gcloud run deploy "${BACKEND_SERVICE}" \
+          gcloud run deploy "${SERVER_SERVICE}" \
             --source . \
             --region "${GCP_REGION}" \
             --platform managed \
@@ -47,9 +47,9 @@ jobs:
             --build-service-account "projects/${PROJECT_ID}/serviceAccounts/${CICD_SA}" \
             --set-env-vars="GCP_PROJECT_ID=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${GCP_REGION},MODEL_NAME=virtual-try-on-001"
 
-  deploy-frontend:
+  deploy-client:
     runs-on: ubuntu-latest
-    needs: deploy-backend
+    needs: deploy-server
     permissions:
       contents: read
       id-token: write
@@ -67,22 +67,22 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Resolve backend URL
-        id: backend
+      - name: Resolve server URL
+        id: server
         run: |
-          BACKEND_URL="$(gcloud run services describe "${BACKEND_SERVICE}" \
+          SERVER_URL="$(gcloud run services describe "${SERVER_SERVICE}" \
             --region "${GCP_REGION}" \
             --format='value(status.url)')"
-          echo "url=${BACKEND_URL}" >> "${GITHUB_OUTPUT}"
+          echo "url=${SERVER_URL}" >> "${GITHUB_OUTPUT}"
 
-      - name: Deploy frontend to Cloud Run
+      - name: Deploy client to Cloud Run
         working-directory: client
         env:
           PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           CICD_SA: ${{ secrets.GCP_WIF_SERVICE_ACCOUNT }}
           RUNTIME_SA: virtual-tryon-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
         run: |
-          gcloud run deploy "${FRONTEND_SERVICE}" \
+          gcloud run deploy "${CLIENT_SERVICE}" \
             --source . \
             --region "${GCP_REGION}" \
             --platform managed \
@@ -90,13 +90,13 @@ jobs:
             --quiet \
             --service-account "${RUNTIME_SA}" \
             --build-service-account "projects/${PROJECT_ID}/serviceAccounts/${CICD_SA}" \
-            --set-build-env-vars="VITE_API_URL=${{ steps.backend.outputs.url }}"
+            --set-build-env-vars="VITE_API_URL=${{ steps.server.outputs.url }}"
 
-      - name: Update backend CORS origin
+      - name: Update server CORS origin
         run: |
-          FRONTEND_URL="$(gcloud run services describe "${FRONTEND_SERVICE}" \
+          CLIENT_URL="$(gcloud run services describe "${CLIENT_SERVICE}" \
             --region "${GCP_REGION}" \
             --format='value(status.url)')"
-          gcloud run services update "${BACKEND_SERVICE}" \
+          gcloud run services update "${SERVER_SERVICE}" \
             --region "${GCP_REGION}" \
-            --update-env-vars="ALLOWED_ORIGIN=${FRONTEND_URL}"
+            --update-env-vars="ALLOWED_ORIGIN=${CLIENT_URL}"
