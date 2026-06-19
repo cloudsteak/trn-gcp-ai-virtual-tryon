@@ -4,14 +4,17 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 import google.auth
-from .config import ALLOWED_ORIGIN, LOCATION, MODEL_NAME
+from .config import ALLOWED_ORIGIN, LOCATION, MODEL_NAME, PROJECT_ID
 from .agent_platform import run_virtual_tryon
 
 # FastAPI alkalmazas letrehozasa
 app = FastAPI(title="Virtual Try-On API")
 
 # Aktualis GCP projekt kiirasa inditaskor – ellenorzeshez hasznos
-_, detected_project = google.auth.default()
+try:
+    _, detected_project = google.auth.default()
+except google.auth.exceptions.DefaultCredentialsError:
+    detected_project = PROJECT_ID or "unknown"
 print(f"INFO: Starting with project={detected_project}, location={LOCATION}, model={MODEL_NAME}")
 
 # CORS beallitas: csak az engedélyezett frontend URL-rol fogad kereseket
@@ -69,3 +72,4 @@ async def try_on(
 
     # Generalt kep visszakuldese PNG formatumban
     return Response(content=result_bytes, media_type="image/png")
+
