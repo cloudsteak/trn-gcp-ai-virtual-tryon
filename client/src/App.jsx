@@ -2,7 +2,7 @@ import { useState } from "react";
 import ImageUploader from "./components/ImageUploader";
 import ResultDisplay from "./components/ResultDisplay";
 
-// Backend URL: Cloud Run runtime config.js, vagy build-time env, vagy ures (Vite proxy)
+// Backend URL: ures = same-origin /try-on (nginx proxy prod-ban, Vite proxy dev-ben)
 function getApiUrl() {
   const runtime = window.__RUNTIME_CONFIG__?.apiUrl;
   if (runtime) return runtime;
