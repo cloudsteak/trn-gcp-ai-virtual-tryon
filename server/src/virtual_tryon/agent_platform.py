@@ -1,25 +1,67 @@
 import base64
-import copy
+import time
+from io import BytesIO
+
 import google.auth
 import google.auth.transport.requests
 import requests
+from PIL import Image
+
 from .config import PROJECT_ID, LOCATION, MODEL_NAME
 
+# A képzéshez mutatott JSON vaz – a tenyleges base64 helyett leiras szerepel
+REQUEST_BODY_TEMPLATE = {
+    "instances": [
+        {
+            "personImage": {"image": {"bytesBase64Encoded": "<base64 string – a feltoltott szemelykep>"}},
+            "productImages": [{"image": {"bytesBase64Encoded": "<base64 string – a ruhadarab kepe>"}}],
+        }
+    ],
+    "parameters": {"baseSteps": 10},
+}
 
-def sanitize_model_response(data, max_preview: int = 60) -> dict | list | str | int | float | bool | None:
-    # Base64 mezok roviditese – olvashato log es UI szamara
-    if isinstance(data, dict):
-        return {key: sanitize_model_response(value, max_preview) for key, value in data.items()}
-    if isinstance(data, list):
-        return [sanitize_model_response(item, max_preview) for item in data]
-    if isinstance(data, str) and len(data) > max_preview:
-        return f"{data[:max_preview]}... [{len(data)} chars, truncated]"
-    return data
+RESPONSE_BODY_TEMPLATE = {
+    "predictions": [
+        {
+            "mimeType": "image/png",
+            "bytesBase64Encoded": "<base64 string – az AI altal generalt kep>",
+        }
+    ]
+}
+
+
+def describe_image(image_bytes: bytes) -> dict:
+    # Kep metaadatok – a hallgatok latjak a bemenet/kimenet meretet formatum nelkul base64 nelkul
+    with Image.open(BytesIO(image_bytes)) as img:
+        return {
+            "format": img.format,
+            "width": img.width,
+            "height": img.height,
+            "size_bytes": len(image_bytes),
+            "size_human": _human_size(len(image_bytes)),
+        }
+
+
+def _human_size(num_bytes: int) -> str:
+    if num_bytes < 1024:
+        return f"{num_bytes} B"
+    if num_bytes < 1024 * 1024:
+        return f"{num_bytes / 1024:.1f} KB"
+    return f"{num_bytes / (1024 * 1024):.1f} MB"
 
 
 def _try_on_single(
-    credentials, url: str, person_bytes: bytes, garment_bytes: bytes
+    credentials,
+    url: str,
+    person_bytes: bytes,
+    garment_bytes: bytes,
+    *,
+    garment_index: int,
+    uses_previous_result_as_person: bool,
 ) -> tuple[bytes, dict]:
+    parameters = {"baseSteps": 10}
+    started_at = time.perf_counter()
+
     # Kepek base64 kodolasa – az API csak szoveges formatumot fogad
     payload = {
         "instances": [
@@ -39,7 +81,7 @@ def _try_on_single(
             }
         ],
         # baseSteps: minnel magasabb, annal jobb a minoseg, de lassabb a valasz
-        "parameters": {"baseSteps": 10},
+        "parameters": parameters,
     }
 
     response = requests.post(
@@ -48,17 +90,59 @@ def _try_on_single(
         headers={"Authorization": f"Bearer {credentials.token}"},
         timeout=120,
     )
+    duration_seconds = round(time.perf_counter() - started_at, 2)
     response.raise_for_status()
 
-    # Generalt kep kinyerese es dekodolasa
     result = response.json()
     image_bytes = base64.b64decode(result["predictions"][0]["bytesBase64Encoded"])
-    return image_bytes, result
+
+    return image_bytes, {
+        "garment_index": garment_index,
+        "chain_note": _chain_note(garment_index, uses_previous_result_as_person),
+        "duration_seconds": duration_seconds,
+        "request": _build_request_summary(url, parameters, person_bytes, garment_bytes),
+        "response": _build_response_summary(response.status_code, result, image_bytes),
+    }
+
+
+def _chain_note(garment_index: int, uses_previous_result_as_person: bool) -> str:
+    if garment_index == 1:
+        return "Az eredeti feltoltott szemelykep kerul a modellnek."
+    if uses_previous_result_as_person:
+        return "A szemelykep helyett az elozo kor AI altal generalt kepe megy be (lancolt probafuelke)."
+    return "Kovetkezo ruhadarab probafelvetele."
+
+
+def _build_request_summary(url: str, parameters: dict, person_bytes: bytes, garment_bytes: bytes) -> dict:
+    return {
+        "method": "POST",
+        "endpoint": url,
+        "model": MODEL_NAME,
+        "parameters": parameters,
+        "body_shape": REQUEST_BODY_TEMPLATE,
+        "inputs": {
+            "person_image": describe_image(person_bytes),
+            "product_image": describe_image(garment_bytes),
+        },
+    }
+
+
+def _build_response_summary(http_status: int, api_body: dict, image_bytes: bytes) -> dict:
+    prediction = api_body.get("predictions", [{}])[0]
+    return {
+        "http_status": http_status,
+        "body_shape": RESPONSE_BODY_TEMPLATE,
+        "predictions_count": len(api_body.get("predictions", [])),
+        "generated_image": {
+            "mimeType": prediction.get("mimeType", "image/png"),
+            **describe_image(image_bytes),
+        },
+    }
 
 
 def run_virtual_tryon(
     person_image_bytes: bytes, garment_images_bytes: list[bytes]
-) -> tuple[bytes, list[dict]]:
+) -> tuple[bytes, dict]:
     # ADC token lekerdese – a Cloud Run-on a Service Account vegzi automatikusan
     credentials, _ = google.auth.default()
     credentials.refresh(google.auth.transport.requests.Request())
@@ -70,12 +154,28 @@ def run_virtual_tryon(
         f"/publishers/google/models/{MODEL_NAME}:predict"
     )
 
+    total_started_at = time.perf_counter()
+    garment_calls: list[dict] = []
+
     # Lancolt probafuelke: minden ruhadarabot egymasutan probaljuk fel,
     # az elozo eredmenykepet hasznalva szemelykepkent a kovetkezo korben
     current_person = person_image_bytes
-    model_responses: list[dict] = []
     for index, garment_bytes in enumerate(garment_images_bytes, start=1):
-        current_person, api_response = _try_on_single(credentials, url, current_person, garment_bytes)
-        model_responses.append({"garment_index": index, "response": copy.deepcopy(api_response)})
+        current_person, call_summary = _try_on_single(
+            credentials,
+            url,
+            current_person,
+            garment_bytes,
+            garment_index=index,
+            uses_previous_result_as_person=index > 1,
+        )
+        garment_calls.append(call_summary)
 
-    return current_person, model_responses
+    return current_person, {
+        "model": MODEL_NAME,
+        "project_id": PROJECT_ID,
+        "location": LOCATION,
+        "garment_count": len(garment_images_bytes),
+        "total_duration_seconds": round(time.perf_counter() - total_started_at, 2),
+        "garment_calls": garment_calls,
+    }

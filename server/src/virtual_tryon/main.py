@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 import google.auth
 from .config import ALLOWED_ORIGIN, LOCATION, MODEL_NAME, PROJECT_ID
-from .agent_platform import run_virtual_tryon, sanitize_model_response
+from .agent_platform import run_virtual_tryon
 
 # FastAPI alkalmazas letrehozasa
 app = FastAPI(title="Virtual Try-On API")
@@ -68,7 +68,7 @@ async def try_on(
     try:
         # Agent Platform hivas kulonallo szalban, 180 masodperces timeouttal
         # (tobb ruhadarabnal tobb egymast koveto hivas tortenik)
-        result_bytes, model_responses = await asyncio.wait_for(
+        result_bytes, model_summary = await asyncio.wait_for(
             asyncio.to_thread(run_virtual_tryon, person_bytes, product_bytes_list),
             timeout=180.0,
         )
@@ -79,14 +79,13 @@ async def try_on(
         print(f"ERROR: {MODEL_NAME} call failed: {e}")
         raise HTTPException(status_code=500, detail=f"{MODEL_NAME} error.")
 
-    sanitized_responses = sanitize_model_response(model_responses)
-    print(f"INFO: {MODEL_NAME} model response: {json.dumps(sanitized_responses, ensure_ascii=False)}")
+    print(f"INFO: {MODEL_NAME} API summary: {json.dumps(model_summary, ensure_ascii=False)}")
 
     if include_model_response:
         return JSONResponse(
             content={
                 "image_base64": base64.b64encode(result_bytes).decode("utf-8"),
-                "model_responses": sanitized_responses,
+                "model_summary": model_summary,
             }
         )
 

@@ -65,7 +65,7 @@ export default function App() {
         const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
         const blob = new Blob([bytes], { type: "image/png" });
         setResultUrl(URL.createObjectURL(blob));
-        setModelResponseText(JSON.stringify(data.model_responses, null, 2));
+        setModelResponseText(JSON.stringify(data.model_summary, null, 2));
       } else {
         // A szerver PNG kepet ad vissza – helyi URL-le alakitjuk a megjeleníteshez
         const blob = await response.blob();
@@ -122,13 +122,13 @@ export default function App() {
           {showModelResponse && (
             <div className="w-full max-w-2xl">
               <label htmlFor="model-response" className="block text-sm font-medium text-gray-700 mb-1">
-                virtual-try-on-001 modell válasza
+                API hívás összefoglaló (kérés / válasz struktúra)
               </label>
               <textarea
                 id="model-response"
                 readOnly
                 value={modelResponseText}
-                placeholder="Itt jelenik meg a modell JSON válasza a próbafülke futtatása után..."
+                placeholder="Itt jelenik meg az endpoint, a JSON váz, a képméretek és az időzítés..."
                 rows={12}
                 className="w-full rounded-lg border border-gray-300 bg-gray-50 p-3 font-mono text-xs text-gray-800 shadow-sm"
               />
