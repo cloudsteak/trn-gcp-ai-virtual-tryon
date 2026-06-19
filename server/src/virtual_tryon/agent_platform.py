@@ -227,22 +227,19 @@ def iter_virtual_tryon(person_image_bytes: bytes, garment_images_bytes: list[byt
     final_summary = _build_summary(garment_calls, garment_count, total_started_at)
     complete_event = {
         "type": "complete",
-        "image_base64": base64.b64encode(current_person).decode("utf-8"),
         "model_summary": final_summary,
     }
     _log_stream_event(complete_event)
-    yield complete_event
+    yield complete_event, current_person
 
 
-def run_virtual_tryon(
-    person_image_bytes: bytes, garment_images_bytes: list[bytes]
-) -> tuple[bytes, dict]:
-    complete_event = None
+def run_virtual_tryon(person_image_bytes: bytes, garment_images_bytes: list[bytes]) -> bytes:
+    result_image = None
     for event in iter_virtual_tryon(person_image_bytes, garment_images_bytes):
-        if event["type"] == "complete":
-            complete_event = event
+        if isinstance(event, tuple):
+            _, result_image = event
 
-    if complete_event is None:
+    if result_image is None:
         raise RuntimeError("Virtual try-on did not produce a result.")
 
-    return base64.b64decode(complete_event["image_base64"]), complete_event["model_summary"]
+    return result_image

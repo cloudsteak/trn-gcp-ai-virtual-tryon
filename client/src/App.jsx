@@ -16,6 +16,17 @@ const GARMENT_SLOTS = [
   { key: "shoes", label: "Lábbeli (cipő, szandál, papucs)" },
 ];
 
+function appendBytes(existing, chunk) {
+  const merged = new Uint8Array(existing.length + chunk.length);
+  merged.set(existing);
+  merged.set(chunk, existing.length);
+  return merged;
+}
+
+function findNewlineIndex(bytes) {
+  return bytes.indexOf(0x0a);
+}
+
 export default function App() {
   const [personImage, setPersonImage] = useState(null);
   const [garments, setGarments] = useState({ top: null, bottom: null, shoes: null });
@@ -43,54 +54,70 @@ export default function App() {
     }
   }, [modelResponseText]);
 
-  function imageBase64ToObjectUrl(imageBase64) {
-    const binary = atob(imageBase64);
-    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-    const blob = new Blob([bytes], { type: "image/png" });
-    return URL.createObjectURL(blob);
+  function handleStreamEvent(event) {
+    if (event.type === "error") {
+      throw new Error(event.message || "Ismeretlen hiba történt.");
+    }
+
+    if (event.type === "started") {
+      setModelResponseText(
+        `Feldolgozás elindult (${event.model_summary.garment_count} ruhadarab)...\n\n` +
+          JSON.stringify(event.model_summary, null, 2)
+      );
+      return;
+    }
+
+    if (event.type === "progress") {
+      setModelResponseText(JSON.stringify(event.model_summary, null, 2));
+      return;
+    }
+
+    if (event.type === "complete") {
+      setModelResponseText(JSON.stringify(event.model_summary, null, 2));
+    }
   }
 
   async function consumeTryOnStream(response) {
     const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+    let buffer = new Uint8Array(0);
+    let imageMode = false;
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
+      buffer = appendBytes(buffer, value);
 
-      for (const line of lines) {
-        if (!line.trim()) continue;
+      if (imageMode) {
+        continue;
+      }
+
+      while (true) {
+        const newlineIndex = findNewlineIndex(buffer);
+        if (newlineIndex === -1) break;
+
+        const lineBytes = buffer.slice(0, newlineIndex);
+        buffer = buffer.slice(newlineIndex + 1);
+
+        const line = new TextDecoder().decode(lineBytes).trim();
+        if (!line) continue;
 
         const event = JSON.parse(line);
-
-        if (event.type === "error") {
-          throw new Error(event.message || "Ismeretlen hiba történt.");
-        }
-
-        if (event.type === "started") {
-          setModelResponseText(
-            `Feldolgozás elindult (${event.model_summary.garment_count} ruhadarab)...\n\n` +
-              JSON.stringify(event.model_summary, null, 2)
-          );
-          continue;
-        }
-
-        if (event.type === "progress") {
-          setModelResponseText(JSON.stringify(event.model_summary, null, 2));
-          continue;
-        }
+        handleStreamEvent(event);
 
         if (event.type === "complete") {
-          setResultUrl(imageBase64ToObjectUrl(event.image_base64));
-          setModelResponseText(JSON.stringify(event.model_summary, null, 2));
+          imageMode = true;
+          break;
         }
       }
     }
+
+    if (!imageMode || buffer.length === 0) {
+      throw new Error("A szerver nem küldött eredményképet.");
+    }
+
+    const blob = new Blob([buffer], { type: "image/png" });
+    setResultUrl(URL.createObjectURL(blob));
   }
 
   async function handleTryOn() {
@@ -182,7 +209,7 @@ export default function App() {
                 ref={modelResponseRef}
                 readOnly
                 value={modelResponseText}
-                placeholder="Itt jelenik meg az endpoint, a JSON váz, a képméretek és az időzítés..."
+                placeholder="Itt jelenik meg az endpoint, a JSON váz, a képméretek és az időzítés – ruhadarabonként frissül..."
                 rows={12}
                 className="w-full rounded-lg border border-gray-300 bg-gray-50 p-3 font-mono text-xs text-gray-800 shadow-sm"
               />
@@ -210,7 +237,7 @@ export default function App() {
           )}
 
           {error && (
-            <p className="text-red-500 text-sm text-center max-w-md">{error}</p> 
+            <p className="text-red-500 text-sm text-center max-w-md">{error}</p>
           )}
         </div>
 
