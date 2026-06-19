@@ -197,16 +197,13 @@ cd client
 export GCP_PROJECT_ID=YOUR_PROJECT_ID
 export VITE_API_URL=https://YOUR_SERVER_URL
 
-# Docker image build és push
-gcloud builds submit --tag gcr.io/$GCP_PROJECT_ID/virtual-tryon-client
-
-# Cloud Run service létrehozása
+# Cloud Run deploy forrásból (VITE_API_URL build-time változó!)
 gcloud run deploy virtual-tryon-client \
-  --image gcr.io/$GCP_PROJECT_ID/virtual-tryon-client \
+  --source . \
   --platform managed \
   --region europe-west1 \
   --allow-unauthenticated \
-  --set-env-vars VITE_API_URL=$VITE_API_URL
+  --set-build-env-vars VITE_API_URL=$VITE_API_URL
 ```
 
 ---
