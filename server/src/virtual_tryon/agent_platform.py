@@ -1,4 +1,5 @@
 import base64
+import json
 import time
 from io import BytesIO
 
@@ -140,9 +141,43 @@ def _build_response_summary(http_status: int, api_body: dict, image_bytes: bytes
     }
 
 
-def run_virtual_tryon(
-    person_image_bytes: bytes, garment_images_bytes: list[bytes]
-) -> tuple[bytes, dict]:
+def _build_summary_base(garment_count: int) -> dict:
+    return {
+        "model": MODEL_NAME,
+        "project_id": PROJECT_ID,
+        "location": LOCATION,
+        "garment_count": garment_count,
+    }
+
+
+def _build_summary(garment_calls: list[dict], garment_count: int, total_started_at: float) -> dict:
+    return {
+        **_build_summary_base(garment_count),
+        "total_duration_seconds": round(time.perf_counter() - total_started_at, 2),
+        "garment_calls": garment_calls,
+    }
+
+
+def _log_stream_event(event: dict) -> None:
+    event_type = event.get("type")
+    if event_type == "started":
+        print(f"INFO: {MODEL_NAME} API summary started: {json.dumps(event['model_summary'], ensure_ascii=False)}")
+        return
+    if event_type == "progress":
+        garment_index = event.get("garment_index")
+        print(
+            f"INFO: {MODEL_NAME} API summary (garment {garment_index}): "
+            f"{json.dumps(event['call_summary'], ensure_ascii=False)}"
+        )
+        return
+    if event_type == "complete":
+        print(
+            f"INFO: {MODEL_NAME} API summary (complete): "
+            f"{json.dumps(event['model_summary'], ensure_ascii=False)}"
+        )
+
+
+def iter_virtual_tryon(person_image_bytes: bytes, garment_images_bytes: list[bytes]):
     # ADC token lekerdese – a Cloud Run-on a Service Account vegzi automatikusan
     credentials, _ = google.auth.default()
     credentials.refresh(google.auth.transport.requests.Request())
@@ -154,8 +189,16 @@ def run_virtual_tryon(
         f"/publishers/google/models/{MODEL_NAME}:predict"
     )
 
+    garment_count = len(garment_images_bytes)
     total_started_at = time.perf_counter()
     garment_calls: list[dict] = []
+
+    started_event = {
+        "type": "started",
+        "model_summary": _build_summary([], garment_count, total_started_at),
+    }
+    _log_stream_event(started_event)
+    yield started_event
 
     # Lancolt probafuelke: minden ruhadarabot egymasutan probaljuk fel,
     # az elozo eredmenykepet hasznalva szemelykepkent a kovetkezo korben
@@ -171,11 +214,35 @@ def run_virtual_tryon(
         )
         garment_calls.append(call_summary)
 
-    return current_person, {
-        "model": MODEL_NAME,
-        "project_id": PROJECT_ID,
-        "location": LOCATION,
-        "garment_count": len(garment_images_bytes),
-        "total_duration_seconds": round(time.perf_counter() - total_started_at, 2),
-        "garment_calls": garment_calls,
+        model_summary = _build_summary(garment_calls, garment_count, total_started_at)
+        progress_event = {
+            "type": "progress",
+            "garment_index": index,
+            "call_summary": call_summary,
+            "model_summary": model_summary,
+        }
+        _log_stream_event(progress_event)
+        yield progress_event
+
+    final_summary = _build_summary(garment_calls, garment_count, total_started_at)
+    complete_event = {
+        "type": "complete",
+        "image_base64": base64.b64encode(current_person).decode("utf-8"),
+        "model_summary": final_summary,
     }
+    _log_stream_event(complete_event)
+    yield complete_event
+
+
+def run_virtual_tryon(
+    person_image_bytes: bytes, garment_images_bytes: list[bytes]
+) -> tuple[bytes, dict]:
+    complete_event = None
+    for event in iter_virtual_tryon(person_image_bytes, garment_images_bytes):
+        if event["type"] == "complete":
+            complete_event = event
+
+    if complete_event is None:
+        raise RuntimeError("Virtual try-on did not produce a result.")
+
+    return base64.b64decode(complete_event["image_base64"]), complete_event["model_summary"]

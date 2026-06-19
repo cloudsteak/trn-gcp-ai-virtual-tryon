@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ImageUploader from "./components/ImageUploader";
 import ResultDisplay from "./components/ResultDisplay";
 
@@ -24,6 +24,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [showModelResponse, setShowModelResponse] = useState(false);
   const [modelResponseText, setModelResponseText] = useState("");
+  const modelResponseRef = useRef(null);
 
   // Csak a kitoltott ruhadarabok kerulnek elkuldésre
   const filledGarments = GARMENT_SLOTS.map((s) => garments[s.key]).filter(Boolean);
@@ -33,6 +34,63 @@ export default function App() {
 
   function updateGarment(key, file) {
     setGarments((prev) => ({ ...prev, [key]: file }));
+  }
+
+  useEffect(() => {
+    const textarea = modelResponseRef.current;
+    if (textarea) {
+      textarea.scrollTop = textarea.scrollHeight;
+    }
+  }, [modelResponseText]);
+
+  function imageBase64ToObjectUrl(imageBase64) {
+    const binary = atob(imageBase64);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const blob = new Blob([bytes], { type: "image/png" });
+    return URL.createObjectURL(blob);
+  }
+
+  async function consumeTryOnStream(response) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+
+        const event = JSON.parse(line);
+
+        if (event.type === "error") {
+          throw new Error(event.message || "Ismeretlen hiba történt.");
+        }
+
+        if (event.type === "started") {
+          setModelResponseText(
+            `Feldolgozás elindult (${event.model_summary.garment_count} ruhadarab)...\n\n` +
+              JSON.stringify(event.model_summary, null, 2)
+          );
+          continue;
+        }
+
+        if (event.type === "progress") {
+          setModelResponseText(JSON.stringify(event.model_summary, null, 2));
+          continue;
+        }
+
+        if (event.type === "complete") {
+          setResultUrl(imageBase64ToObjectUrl(event.image_base64));
+          setModelResponseText(JSON.stringify(event.model_summary, null, 2));
+        }
+      }
+    }
   }
 
   async function handleTryOn() {
@@ -60,12 +118,7 @@ export default function App() {
       }
 
       if (showModelResponse) {
-        const data = await response.json();
-        const binary = atob(data.image_base64);
-        const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-        const blob = new Blob([bytes], { type: "image/png" });
-        setResultUrl(URL.createObjectURL(blob));
-        setModelResponseText(JSON.stringify(data.model_summary, null, 2));
+        await consumeTryOnStream(response);
       } else {
         // A szerver PNG kepet ad vissza – helyi URL-le alakitjuk a megjeleníteshez
         const blob = await response.blob();
@@ -126,6 +179,7 @@ export default function App() {
               </label>
               <textarea
                 id="model-response"
+                ref={modelResponseRef}
                 readOnly
                 value={modelResponseText}
                 placeholder="Itt jelenik meg az endpoint, a JSON váz, a képméretek és az időzítés..."

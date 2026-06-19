@@ -1,13 +1,12 @@
 import asyncio
-import base64
 import json
 from typing import List
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response, StreamingResponse
 import google.auth
 from .config import ALLOWED_ORIGIN, LOCATION, MODEL_NAME, PROJECT_ID
-from .agent_platform import run_virtual_tryon
+from .agent_platform import iter_virtual_tryon, run_virtual_tryon
 
 # FastAPI alkalmazas letrehozasa
 app = FastAPI(title="Virtual Try-On API")
@@ -19,7 +18,7 @@ except google.auth.exceptions.DefaultCredentialsError:
     detected_project = PROJECT_ID or "unknown"
 print(f"INFO: Starting with project={detected_project}, location={LOCATION}, model={MODEL_NAME}")
 
-# CORS beallitas: csak az engedélyezett frontend URL-rol fogad kereseket
+# CORS beallitas: csak az engedelyezett frontend URL-rol fogad kereseket
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[ALLOWED_ORIGIN],
@@ -46,6 +45,25 @@ def _parse_show_model_response(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _stream_try_on(person_bytes: bytes, product_bytes_list: list[bytes]) -> StreamingResponse:
+    def generate():
+        try:
+            for event in iter_virtual_tryon(person_bytes, product_bytes_list):
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+        except Exception as e:
+            print(f"ERROR: {MODEL_NAME} call failed: {e}")
+            yield json.dumps({"type": "error", "message": str(e)}, ensure_ascii=False) + "\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="application/x-ndjson",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache",
+        },
+    )
+
+
 @app.post("/try-on")
 async def try_on(
     person_image: UploadFile = File(...),
@@ -65,10 +83,13 @@ async def try_on(
 
     include_model_response = _parse_show_model_response(show_model_response)
 
+    if include_model_response:
+        return _stream_try_on(person_bytes, product_bytes_list)
+
     try:
         # Agent Platform hivas kulonallo szalban, 180 masodperces timeouttal
         # (tobb ruhadarabnal tobb egymast koveto hivas tortenik)
-        result_bytes, model_summary = await asyncio.wait_for(
+        result_bytes, _ = await asyncio.wait_for(
             asyncio.to_thread(run_virtual_tryon, person_bytes, product_bytes_list),
             timeout=180.0,
         )
@@ -79,16 +100,5 @@ async def try_on(
         print(f"ERROR: {MODEL_NAME} call failed: {e}")
         raise HTTPException(status_code=500, detail=f"{MODEL_NAME} error.")
 
-    print(f"INFO: {MODEL_NAME} API summary: {json.dumps(model_summary, ensure_ascii=False)}")
-
-    if include_model_response:
-        return JSONResponse(
-            content={
-                "image_base64": base64.b64encode(result_bytes).decode("utf-8"),
-                "model_summary": model_summary,
-            }
-        )
-
     # Generalt kep visszakuldese PNG formatumban
     return Response(content=result_bytes, media_type="image/png")
-
