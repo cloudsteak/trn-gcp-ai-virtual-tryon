@@ -22,6 +22,8 @@ export default function App() {
   const [resultUrl, setResultUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showModelResponse, setShowModelResponse] = useState(false);
+  const [modelResponseText, setModelResponseText] = useState("");
 
   // Csak a kitoltott ruhadarabok kerulnek elkuldésre
   const filledGarments = GARMENT_SLOTS.map((s) => garments[s.key]).filter(Boolean);
@@ -38,11 +40,13 @@ export default function App() {
     setLoading(true);
     setError(null);
     setResultUrl(null);
+    setModelResponseText("");
 
     // multipart/form-data osszeallitasa – szemelykep + ruhadarabok
     const formData = new FormData();
     formData.append("person_image", personImage);
     filledGarments.forEach((img) => formData.append("product_images", img));
+    formData.append("show_model_response", showModelResponse ? "true" : "false");
 
     try {
       const response = await fetch(`${getApiUrl()}/try-on`, {
@@ -55,9 +59,18 @@ export default function App() {
         throw new Error(msg || "Ismeretlen hiba történt.");
       }
 
-      // A szerver PNG kepet ad vissza – helyi URL-le alakitjuk a megjeleníteshez
-      const blob = await response.blob();
-      setResultUrl(URL.createObjectURL(blob));
+      if (showModelResponse) {
+        const data = await response.json();
+        const binary = atob(data.image_base64);
+        const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+        const blob = new Blob([bytes], { type: "image/png" });
+        setResultUrl(URL.createObjectURL(blob));
+        setModelResponseText(JSON.stringify(data.model_responses, null, 2));
+      } else {
+        // A szerver PNG kepet ad vissza – helyi URL-le alakitjuk a megjeleníteshez
+        const blob = await response.blob();
+        setResultUrl(URL.createObjectURL(blob));
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -96,6 +109,32 @@ export default function App() {
         </div>
 
         <div className="flex flex-col items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showModelResponse}
+              onChange={(event) => setShowModelResponse(event.target.checked)}
+              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            Mutasd az AI modell válaszát (képzéshez)
+          </label>
+
+          {showModelResponse && (
+            <div className="w-full max-w-2xl">
+              <label htmlFor="model-response" className="block text-sm font-medium text-gray-700 mb-1">
+                Vertex AI modell válasz
+              </label>
+              <textarea
+                id="model-response"
+                readOnly
+                value={modelResponseText}
+                placeholder="Itt jelenik meg a modell JSON válasza a próbafülke futtatása után..."
+                rows={12}
+                className="w-full rounded-lg border border-gray-300 bg-gray-50 p-3 font-mono text-xs text-gray-800 shadow-sm"
+              />
+            </div>
+          )}
+
           <button
             onClick={handleTryOn}
             disabled={!canSubmit}
