@@ -69,3 +69,4 @@ async def try_on(
 
     # Generalt kep visszakuldese PNG formatumban
     return Response(content=result_bytes, media_type="image/png")
+
