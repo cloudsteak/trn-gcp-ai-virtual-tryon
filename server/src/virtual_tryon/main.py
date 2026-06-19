@@ -49,15 +49,22 @@ def _stream_try_on(person_bytes: bytes, product_bytes_list: list[bytes]) -> Stre
     def generate():
         try:
             for event in iter_virtual_tryon(person_bytes, product_bytes_list):
-                yield json.dumps(event, ensure_ascii=False) + "\n"
+                if isinstance(event, tuple):
+                    complete_event, result_image = event
+                    yield (json.dumps(complete_event, ensure_ascii=False) + "\n").encode("utf-8")
+                    yield result_image
+                    return
+
+                yield (json.dumps(event, ensure_ascii=False) + "\n").encode("utf-8")
         except Exception as e:
             print(f"ERROR: {MODEL_NAME} call failed: {e}")
-            yield json.dumps({"type": "error", "message": str(e)}, ensure_ascii=False) + "\n"
+            yield (json.dumps({"type": "error", "message": str(e)}, ensure_ascii=False) + "\n").encode("utf-8")
 
     return StreamingResponse(
         generate(),
-        media_type="application/x-ndjson",
+        media_type="application/octet-stream",
         headers={
+            "X-TryOn-Mode": "stream-summary",
             "X-Accel-Buffering": "no",
             "Cache-Control": "no-cache",
         },
@@ -89,7 +96,7 @@ async def try_on(
     try:
         # Agent Platform hivas kulonallo szalban, 180 masodperces timeouttal
         # (tobb ruhadarabnal tobb egymast koveto hivas tortenik)
-        result_bytes, _ = await asyncio.wait_for(
+        result_bytes = await asyncio.wait_for(
             asyncio.to_thread(run_virtual_tryon, person_bytes, product_bytes_list),
             timeout=180.0,
         )
