@@ -117,7 +117,7 @@ export default function App() {
           )}
 
           {error && (
-            <p className="text-red-500 text-sm text-center max-w-md">{error}</p>
+            <p className="text-red-500 text-sm text-center max-w-md">{error}</p> 
           )}
         </div>
 
