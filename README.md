@@ -6,15 +6,27 @@ Ruha felpróbálás AI-val: feltöltöd a saját fotódat és a ruhadarabokat (f
 
 ## Tartalom
 
-1. [Gcloud telepítés](#gcloud-telepítés)
-2. [Általános ismerető](#1-általános-ismerető)
-3. [Virtuális próbafülke skálázható felhő alapú megoldással](#2-virtuális-próbafülke-skálázható-felhő-alapú-megoldással)
+1. [Gcloud telepítés](#1-gcloud-telepítés) – GCP production gyors út *(Cloud Run + CI/CD)*
+2. [Általános ismerető](#2-általános-ismerető)
+3. [Virtuális próbafülke skálázható felhő alapú megoldással](#3-virtuális-próbafülke-skálázható-felhő-alapú-megoldással)
+   - [Architektúra](#architektúra)
+   - [API végpontok](#api-végpontok)
+   - [Előfeltételek](#előfeltételek)
+   - [Telepítési áttekintés](#telepítési-áttekintés)
+   - [**Helyi telepítés és tesztelés**](#helyi-telepítés-és-tesztelés) *(fejlesztői gép – backend + frontend)*
+   - [GCP telepítés és tesztelés](#gcp-telepítés-és-tesztelés) *(részletes – scriptek, WIF, deploy)*
+   - [Környezeti változók](#környezeti-változók)
+   - [Működik-e?](#működik-e)
+   - [Projekt struktúra](#projekt-struktúra)
+4. [Képzési megjegyzés – „törött” állapot](#4-képzési-megjegyzés--törött-állapot)
 
 ---
 
-## Gcloud telepítés
+## 1. Gcloud telepítés
 
-Gyors útmutató a GCP-re való telepítéshez. Részletek alább a [2. szekcióban](#2-virtuális-próbafülke-skálázható-felhő-alapú-megoldással).
+Gyors útmutató a GCP-re való telepítéshez. Részletek alább a [GCP telepítés és tesztelés](#gcp-telepítés-és-tesztelés) szekcióban.
+
+> **Csak helyben szeretnéd kipróbálni?** Ugorj a [Helyi telepítés és tesztelés](#helyi-telepítés-és-tesztelés) szekcióhoz – nem kell hozzá Cloud Run deploy, de GCP projekt és ADC bejelentkezés igen.
 
 **Előfeltételek:** `gcloud` CLI, `gh` CLI, GCP projekt számlázással.
 
@@ -104,7 +116,7 @@ A `teardown-github.sh` törli a GitHub secrets-eket és a pipeline workflow run 
 
 ---
 
-## 1. Általános ismerető
+## 2. Általános ismerető
 
 Ez a projekt egy **skálázható felhő alapú virtuális próbafülke** demo: React frontend, FastAPI backend, Agent Platform API, Cloud Run deploy és GitHub Actions CI/CD.
 
@@ -124,7 +136,7 @@ Ez a projekt egy **skálázható felhő alapú virtuális próbafülke** demo: R
 
 ---
 
-## 2. Virtuális próbafülke skálázható felhő alapú megoldással
+## 3. Virtuális próbafülke skálázható felhő alapú megoldással
 
 Ez a repository **production-ready** megoldást ad: React frontend, FastAPI backend, Agent Platform API, Cloud Run deploy és GitHub Actions CI/CD.
 
@@ -432,7 +444,7 @@ cd client && npm install && npm run build
 
 ### GCP telepítés és tesztelés
 
-> **Gyors útmutató:** A lépések rövid összefoglalója a [Gcloud telepítés](#gcloud-telepítés) szekcióban.
+> **Gyors útmutató:** A lépések rövid összefoglalója az [1. Gcloud telepítés](#1-gcloud-telepítés) szekcióban.
 
 #### Telepítési sorrend (ajánlott)
 
@@ -609,7 +621,7 @@ trn-gcp-ai-virtual-tryon/
 
 ---
 
-## Képzési megjegyzés – „törött” állapot
+## 4. Képzési megjegyzés – „törött” állapot
 
 Az alkalmazás alapállapotban **szándékosan nem működik teljesen** a képzésen: a `server/.env` fájlban a `GCP_PROJECT_ID` értéke üresen / placeholder – ezt a résztvevőkkel együtt töltjük ki. A modell neve (`virtual-try-on-001`) már be van állítva; a hiányzó projekt ID miatt a backend nem tud hitelesíteni a GCP felé, amíg nem konfigurálod.
 
