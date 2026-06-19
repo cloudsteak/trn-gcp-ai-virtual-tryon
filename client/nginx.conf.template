@@ -1,0 +1,30 @@
+server {
+    listen 8080;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # API proxy – same-origin /try-on, igy nincs CORS problema Cloud Run URL-ek kozott
+    location /try-on {
+        proxy_pass __BACKEND_URL__/try-on;
+        proxy_ssl_server_name on;
+        proxy_set_header Host __BACKEND_HOST__;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 25M;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 180s;
+        proxy_read_timeout 180s;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
