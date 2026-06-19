@@ -418,7 +418,7 @@ curl -X POST http://localhost:8000/try-on \
 
 | Hiba | Ok |
 |------|-----|
-| `500 – Vertex AI error` | Nincs ADC, hiányzó IAM jogosultság, vagy hibás `GCP_PROJECT_ID` |
+| `500 – virtual-try-on-001 error` | Nincs ADC, hiányzó IAM jogosultság, vagy hibás `GCP_PROJECT_ID` |
 | `500 – timed out` | Több ruhadarab / lassú modell – max 180 s |
 | `400 – Only jpg and png` | Rossz fájltípus |
 | `403 / PERMISSION_DENIED` | Hiányzó `roles/aiplatform.user` a felhasználóra vagy SA-ra |
