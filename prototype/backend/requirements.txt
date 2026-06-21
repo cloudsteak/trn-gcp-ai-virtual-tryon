@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+python-multipart
+google-auth
+requests
+python-dotenv

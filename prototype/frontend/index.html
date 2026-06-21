@@ -1,0 +1,19 @@
+<h1>Virtuális Próbafülke</h1>
+<form id="form">
+  <p>Személy képe: <input type="file" id="person" accept="image/jpeg,image/png"></p>
+  <p>Ruha képe: <input type="file" id="product" accept="image/jpeg,image/png"></p>
+  <button type="submit">Próbáld fel!</button>
+</form>
+<img id="result">
+<script>
+  const API_URL = window.location.protocol === "file:" ? "http://localhost:8000" : window.location.origin;
+
+  document.getElementById("form").onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append("person_image", document.getElementById("person").files[0]);
+    formData.append("product_images", document.getElementById("product").files[0]);
+    const response = await fetch(API_URL + "/try-on", { method: "POST", body: formData });
+    document.getElementById("result").src = URL.createObjectURL(await response.blob());
+  };
+</script>
