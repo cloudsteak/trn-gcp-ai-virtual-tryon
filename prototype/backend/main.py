@@ -18,12 +18,15 @@ LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "europe-west1")
 
 app = FastAPI()
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+    CORSMiddleware, 
+    allow_origins=["*"], 
+    allow_methods=["*"], 
+    allow_headers=["*"]
 )
 
 
 @app.get("/")
-def read_root():
+def status():
     return {"status": "ok"}
 
 
@@ -74,9 +77,3 @@ async def try_on(
         base64.b64decode(result["predictions"][0]["bytesBase64Encoded"]),
         media_type="image/png",
     )
-
-
-app.mount(
-    "/",
-    StaticFiles(directory=str(Path(__file__).parent.parent / "frontend"), html=True),
-)
