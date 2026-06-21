@@ -86,6 +86,28 @@ Kilépés a venv-ből (macOS / Linux / Windows – mindenhol ugyanaz):
 deactivate
 ```
 
+### VS Code / Cursor – Python interpreter
+
+A `.venv` a `.gitignore`-ban van, ezért az editor alapból **nem mindig találja meg** automatikusan.
+
+**Egyszeri beállítás** (a repo gyökerében):
+
+```bash
+cp .vscode/settings.json.example .vscode/settings.json
+```
+
+Ez beállítja: `prototype/backend/.venv/bin/python` (macOS / Linux).
+
+**Windows:** a `.vscode/settings.json`-ban cseréld erre:
+
+```json
+"python.defaultInterpreterPath": "${workspaceFolder}/prototype/backend/.venv/Scripts/python.exe"
+```
+
+**Kézi kiválasztás:** Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) → **Python: Select Interpreter** → válaszd a `prototype/backend/.venv` alatti Pythont.
+
+A beállítás kikapcsolja a Pylance-t (`python.languageServer: None`) – a terminálban továbbra is a venv Pythonja fut.
+
 ### Függőségek telepítése
 
 Hozd létre a `requirements.txt` fájlt:
@@ -397,6 +419,7 @@ Most már elég a [http://localhost:8000/](http://localhost:8000/) megnyitása.
 | Tünet | Valószínű ok | Megoldás |
 |---|---|---|
 | `ModuleNotFoundError: No module named 'google'` | A venv nincs aktiválva, vagy a rendszer Python fut | `source .venv/bin/activate`, majd `pip install -r requirements.txt`, végül `python -m uvicorn ...` (ne sima `uvicorn`) |
+| `ModuleNotFoundError` terminálban, de pip install OK | Rossz Python / nincs venv aktiválva | `source .venv/bin/activate`, majd `python -m uvicorn ...` |
 | `KeyError: GCP_PROJECT_ID` | Hiányzó `.env` | `cp example.env .env` és töltsd ki |
 | `403 Forbidden` Vertex AI-tól | Nincs jogosultság / API | `aiplatform.googleapis.com` engedélyezése, IAM ellenőrzés |
 | `DefaultCredentialsError` | Nincs ADC token | `gcloud auth application-default login` |

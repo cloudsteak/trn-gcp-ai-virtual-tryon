@@ -10,7 +10,7 @@ dist/
 .ruff_cache/
 .mypy_cache/
 Claude.md
-.vscode/settings.json
+#.vscode/settings.json
 .claude/**
 
 
