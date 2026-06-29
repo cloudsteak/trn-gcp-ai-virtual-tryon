@@ -1,6 +1,5 @@
 import base64
 import os
-from pathlib import Path
 
 import google.auth
 import google.auth.transport.requests
@@ -9,7 +8,6 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
@@ -25,7 +23,7 @@ app.add_middleware(
 )
 
 
-@app.get("/")
+@app.get("/health")
 def status():
     return {"status": "ok"}
 

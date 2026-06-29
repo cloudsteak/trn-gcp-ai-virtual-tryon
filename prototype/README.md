@@ -14,17 +14,18 @@ Egy **egy fájlos FastAPI backend** + **egy darab HTML** frontend.
 - A backend meghívja a Google Vertex AI `virtual-try-on-001` modelljét
 - Visszakapsz egy **generált PNG képet**, ahol a ruha „rá van téve” a modellre
 
-Nincs React, nincs build lépés, nincs Docker – csak Python + böngésző.
+Nincs React, nincs build lépés – lokálisan Python + böngésző; Cloud Run-ra a `backend/Dockerfile`.
 
 ```
 prototype/
 ├── backend/
 │   ├── main.py              ← minden backend logika itt van
 │   ├── requirements.txt     ← pip függőségek
+│   ├── Dockerfile           ← Cloud Run deploy (--source)
 │   ├── example.env          ← másold .env-re és töltsd ki
 │   └── .env                 ← lokális beállítások (gitignore!)
 └── frontend/
-    └── index.html           ← form + fetch hívás
+    └── index.html           ← form + fetch hívás (lokálisan, külön)
 ```
 
 ---
@@ -425,7 +426,7 @@ Most már elég a [http://localhost:8000/](http://localhost:8000/) megnyitása.
 | `DefaultCredentialsError` | Nincs ADC token | `gcloud auth application-default login` |
 | CORS hiba a böngészőben | CORS middleware hiányzik | 6. lépés CORS blokk |
 | Üres vagy hibás kép | Rossz képfájl / API hiba | Nézd a backend terminál kimenetét |
-| `/` JSON-t ad HTML helyett | Health check route még aktív | Töröld a `read_root`-ot a static mount után |
+| `/` nem tölt be HTML-t Cloud Run-on | A Docker image csak backend | Frontend külön (`frontend/index.html`) vagy curl |
 
 ---
 
@@ -438,7 +439,7 @@ Most már elég a [http://localhost:8000/](http://localhost:8000/) megnyitása.
 | Auth | ADC (gcloud login) | ADC (Cloud Run-on Service Account) |
 | Ruhadarabok | 1 db | Több, láncolt próbafülke |
 | API összefoglaló stream | nincs | van (képzéshez) |
-| Deploy | lokálisan fut | Cloud Run + GitHub Actions |
+| Deploy | lokálisan + Cloud Run (lásd alább) | Cloud Run + GitHub Actions |
 
 Az API szerződés (`POST /try-on`, `person_image`, `product_images`, PNG válasz) **megegyezik** – innen érthető, miért skálázható a nagy verzió.
 
@@ -457,3 +458,61 @@ python -m uvicorn main:app --reload --port 8000
 ```
 
 Böngésző: [http://localhost:8000/](http://localhost:8000/) vagy nyisd meg a `frontend/index.html`-t.
+
+---
+
+## Cloud Run deploy
+
+A `Dockerfile` a `prototype/backend/` mappában van – **csak a backend** kerül image-be.
+
+A frontend lokálisan marad (`frontend/index.html` → `http://localhost:8000` API), vagy külön hostolható.
+
+### Deploy
+
+```bash
+cd prototype/backend
+
+gcloud run deploy virtual-tryon-prototype \
+  --source . \
+  --region europe-west1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --service-account virtual-tryon-sa@${GCP_PROJECT_ID}.iam.gserviceaccount.com \
+  --set-env-vars="GCP_PROJECT_ID=${GCP_PROJECT_ID},GOOGLE_CLOUD_LOCATION=europe-west1" \
+  --timeout=120 \
+  --memory=512Mi
+```
+
+Előtte: `gcloud config set project YOUR_PROJECT_ID` és a `virtual-tryon-sa` SA `roles/aiplatform.user` joggal.
+
+A deploy után a Cloud Run URL-t add meg a frontendben (vagy használd curl-lel):
+
+```bash
+curl -X POST https://YOUR-SERVICE-URL/try-on \
+  -F "person_image=@../../images/modell/no_1.jpg" \
+  -F "product_images=@../../images/ruha/n_top.jpg" \
+  --output result.png
+```
+
+### Lokális Docker teszt (opcionális)
+
+```bash
+cd prototype/backend
+docker build -t virtual-tryon-prototype .
+docker run --rm -p 8080:8080 \
+  -e GCP_PROJECT_ID=your-project-id \
+  -e GOOGLE_CLOUD_LOCATION=europe-west1 \
+  -v "$HOME/.config/gcloud:/root/.config/gcloud:ro" \
+  virtual-tryon-prototype
+```
+
+Health: [http://localhost:8080/health](http://localhost:8080/health)
+
+### Környezeti változók Cloud Run-on
+
+| Változó | Érték |
+|---|---|
+| `GCP_PROJECT_ID` | GCP projekt ID |
+| `GOOGLE_CLOUD_LOCATION` | pl. `europe-west1` |
+
+A `.env` fájl **nem kerül** a Docker image-be. Cloud Run-on a service account ADC-t ad (nem kell `gcloud auth`).
