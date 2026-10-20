@@ -8,7 +8,8 @@ Ruha felpróbálás AI-val: feltöltöd a saját fotódat és a ruhadarabokat (f
 
 1. [Gcloud telepítés](#1-gcloud-telepítés) – GCP production gyors út *(Cloud Run + CI/CD)*
 2. [Általános ismerető](#2-általános-ismerető)
-3. [Virtuális próbafülke skálázható felhő alapú megoldással](#3-virtuális-próbafülke-skálázható-felhő-alapú-megoldással)
+3. [Egyszerű bemutatók (demók)](#3-egyszerű-bemutatók-demók)
+4. [Virtuális próbafülke skálázható felhő alapú megoldással](#4-virtuális-próbafülke-skálázható-felhő-alapú-megoldással)
    - [Architektúra](#architektúra)
    - [API végpontok](#api-végpontok)
    - [Előfeltételek](#előfeltételek)
@@ -18,7 +19,7 @@ Ruha felpróbálás AI-val: feltöltöd a saját fotódat és a ruhadarabokat (f
    - [Környezeti változók](#környezeti-változók)
    - [Működik-e?](#működik-e)
    - [Projekt struktúra](#projekt-struktúra)
-4. [Képzési megjegyzés – „törött” állapot](#4-képzési-megjegyzés--törött-állapot)
+5. [Képzési megjegyzés – „törött” állapot](#5-képzési-megjegyzés--törött-állapot)
 
 ---
 
@@ -136,7 +137,16 @@ Ez a projekt egy **skálázható felhő alapú virtuális próbafülke** demo: R
 
 ---
 
-## 3. Virtuális próbafülke skálázható felhő alapú megoldással
+## 3. Egyszerű bemutatók (demók)
+
+A modellhívás először két rövid demóban látszik. Mindkettő egy személyt és egy ruhadarabot küld a `virtual-try-on-001:predict` végpontra. A futtatás lépései: [demos/README.md](demos/README.md).
+
+- **Notebook:** [demos/a_virtual_try_on.ipynb](demos/a_virtual_try_on.ipynb). Google Colabban fut. A cellákat egyesével kell futtatni. A projektazonosítót, a régiót és a két képet a cellában adod meg.
+- **Python kód:** [demos/b_virtual_try_on.py](demos/b_virtual_try_on.py). Helyi gépen fut. A projekt, a régió és a két kép linkje környezeti változó. A kész kép a `demos/output/result.png` fájlba kerül.
+
+---
+
+## 4. Virtuális próbafülke skálázható felhő alapú megoldással
 
 Ez a repository **production-ready** megoldást ad: React frontend, FastAPI backend, Agent Platform API, Cloud Run deploy és GitHub Actions CI/CD.
 
@@ -613,6 +623,11 @@ trn-gcp-ai-virtual-tryon/
 │   ├── pyproject.toml               # uv függőségek
 │   └── Dockerfile
 │
+├── demos/                           # Képzési demók, ugyanaz a predict hívás
+│   ├── a_virtual_try_on.ipynb       # Colab notebook
+│   ├── b_virtual_try_on.py          # Helyi Python program
+│   ├── requirements.txt
+│   └── README.md                    # Futtatás, ADC belépés
 ├── scripts/                         # setup.sh, setup-wif.sh, setup-github.sh, teardown*.sh
 ├── .github/workflows/               # lint.yml, deploy.yml
 ├── test_images/                     # Demo képek (személy + ruhadarabok)
@@ -621,7 +636,7 @@ trn-gcp-ai-virtual-tryon/
 
 ---
 
-## 4. Képzési megjegyzés – „törött” állapot
+## 5. Képzési megjegyzés – „törött” állapot
 
 Az alkalmazás alapállapotban **szándékosan nem működik teljesen** a képzésen: a `server/.env` fájlban a `GCP_PROJECT_ID` értéke üresen / placeholder – ezt a résztvevőkkel együtt töltjük ki. A modell neve (`virtual-try-on-001`) már be van állítva; a hiányzó projekt ID miatt a backend nem tud hitelesíteni a GCP felé, amíg nem konfigurálod.
 
