@@ -1,17 +1,23 @@
-# Virtuális próbafülke, helyi Python
+# Virtuális próbafülke demók
 
-Egy személy fotója és egy ruhadarab. A `b_virtual_try_on.py` ugyanazt a `virtual-try-on-001` predict hívást küldi el, mint az `a_virtual_try_on.ipynb` notebook.
+Egy személy fotója és egy ruhadarab. Mindkét demó a `virtual-try-on-001` predict hívást küldi el. A modell nem szöveggel válaszol, hanem egy képet generál.
 
-A modell nem szöveggel válaszol, hanem egy képet generál. A kész kép a `demos/output/result.png` fájlba kerül.
+## Notebook (`a_virtual_try_on.ipynb`)
 
-## Előfeltétel
+A Google Colabban fut. A fájlt feltöltöd, a cellákat egyesével futtatod, fentről lefelé. A projektazonosítót, a régiót és a két képet abban a cellában adod meg, ahol megjelenik: listából, vagy saját `https://` linkkel. A kész kép a cella alatt jelenik meg. Helyi Python ehhez a fájlhoz nem kell.
+
+## Python kód (`b_virtual_try_on.py`)
+
+Helyi gépen fut. A projekt, a régió és a két kép linkje környezeti változó. A kész kép a `demos/output/result.png` fájlba kerül.
+
+### Előfeltétel
 
 - Python 3
 - Telepített `gcloud` CLI
 - GCP projekt, bekapcsolt Vertex AI API (`aiplatform.googleapis.com`)
 - A fiókodnak `roles/aiplatform.user` joga van a projekten
 
-## 1. Szükséges komponensek telepítése
+### 1. Szükséges komponensek telepítése
 
 A `demos` mappából:
 
@@ -23,7 +29,7 @@ pip install -r requirements.txt
 
 A `google-auth` kéri le a belépési tokent. A `requests` tölti le a képeket, és küldi el a predict hívást.
 
-## 2. Bejelentkezés a Google Cloud projektbe (ADC)
+### 2. Bejelentkezés a Google Cloud projektbe (ADC)
 
 Application Default Credentials (ADC): a szkript innen olvassa a belépést, külön kulcsfájl nélkül.
 
@@ -47,7 +53,7 @@ gcloud auth application-default set-quota-project "${GCP_PROJECT_ID}"
 
 A `set-quota-project` csak az ADC belépés után működik. A hívás számlázása és kvótája ehhez a projekthez tartozik.
 
-## 3. Környezeti változók
+### 3. Környezeti változók
 
 A szkript ezeket olvassa. A két kép `https://` link. A link egyenesen a jpg vagy png fájlra mutasson.
 
@@ -67,7 +73,7 @@ export GARMENT_IMAGE_URL=https://raw.githubusercontent.com/cloudsteak/trn-gcp-ai
 
 Egyszerre csak egy ruhadarab megy a személyre.
 
-## 4. Futtatás
+### 4. Futtatás
 
 A virtuális környezet legyen aktív, a változók legyenek exportálva, majd:
 
