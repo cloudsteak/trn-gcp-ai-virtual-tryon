@@ -9,7 +9,7 @@ from .config import ALLOWED_ORIGIN, LOCATION, MODEL_NAME, PROJECT_ID
 from .agent_platform import iter_virtual_tryon, run_virtual_tryon
 
 # FastAPI alkalmazas letrehozasa
-app = FastAPI(title="Virtual Try-On API")
+app = FastAPI(title="Virtual Try-On API 2026")
 
 # Aktualis GCP projekt kiirasa inditaskor – ellenorzeshez hasznos
 try:
