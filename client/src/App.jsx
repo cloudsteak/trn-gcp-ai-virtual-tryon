@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import ImageUploader from "./components/ImageUploader";
 import ResultDisplay from "./components/ResultDisplay";
 
-// Backend URL: ures = same-origin /try-on (nginx proxy prod-ban, Vite proxy dev-ben) 
+// Backend URL: ures = same-origin /try-on (nginx proxy prod-ban, Vite proxy dev-ben)
 function getApiUrl() {
   const runtime = window.__RUNTIME_CONFIG__?.apiUrl;
   if (runtime) return runtime;
